@@ -1,20 +1,37 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# CubeMaster
 
-# Run and deploy your AI Studio app
+A sleek, high-performance Rubik's Cube training and timing application.
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1H9P9BTJKrbAGljuzdwhInje0MeCiHYv0
+## Features
+- **Learning Mode**: Explore algorithms for various cube stages (F2L, OLL, PLL, etc.).
+- **Pro Timer**: Precision chronometer for timing your solves with Ao5 and Ao12 stats.
+- **2D/3D Visualization**: Clear visual representation of cube states.
+- **Cyberpunk Aesthetic**: Premium, dark-themed UI for a professional feel.
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+**Prerequisites:** Node.js
 
+1.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+2.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+
+## Deployment
+
+Deploying to GitHub Pages is easy:
+
+1.  **Push your changes to GitHub.**
+2.  **Run the deployment script:**
+    ```bash
+    npm run deploy
+    ```
+    This will build the app and push it to the `gh-pages` branch.
+
+3.  **Configure GitHub Pages:**
+    Go to your repository settings on GitHub, navigate to **Pages**, and ensure the source is set to the `gh-pages` branch.
