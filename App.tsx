@@ -184,7 +184,7 @@ const App: React.FC = () => {
               ></div>
 
               {/* 2D Cube Diagram (Replaces 3D) */}
-              <div className="absolute inset-0 z-0 flex items-center justify-center pb-32 md:pb-0">
+              <div className="absolute inset-0 z-0 flex items-center justify-center pb-32 md:pb-48 lg:pb-64">
                 {/* Glow behind cube */}
                 <div className="absolute w-[300px] h-[300px] bg-cyan-500/5 blur-[80px] rounded-full pointer-events-none"></div>
 
