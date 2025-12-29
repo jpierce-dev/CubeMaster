@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   base: '/CubeMaster/',
-  plugins: [react()],
+  plugins: [
+    react(),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
