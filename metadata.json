@@ -1,0 +1,5 @@
+{
+  "name": "CubeMaster",
+  "description": "A high-end Rubik's Cube learning web app featuring interactive visualizations and professional timing tools.",
+  "requestFramePermissions": []
+}
