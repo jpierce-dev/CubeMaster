@@ -10,34 +10,41 @@ const CATEGORIES = Array.from(new Set(FORMULAS.map(f => f.category)));
 
 // Helper to determine if we should mask non-yellow colors
 const getVisualCubies = (originalCubies: Cubie[], formula: Formula): Cubie[] => {
-  if (!formula.category.includes('OLL')) return originalCubies;
+  const isOLL = formula.category.includes('OLL');
+  const isPLL = formula.category.includes('PLL');
 
-  // For Step 1 OLL (Edges), we expressly ignore corners (make them all gray)
-  // Step 2 OLL (Corners), we care about everything on U layer (Edges are already yellow)
-  const isEdgeStep = ['oll-dot', 'oll-l-shape', 'oll-line'].includes(formula.id);
+  if (!isOLL && !isPLL) return originalCubies;
 
   return originalCubies.map(c => {
-    // Check if it's a corner piece
-    const isCorner = Math.abs(c.x) === 1 && Math.abs(c.z) === 1; // Correct for Corners (x=±1, z=±1)
+    // We only care about the top layer (y=1) visual effects
+    if (c.y !== 1) return c;
 
-    // Deep copy colors
+    const isCorner = Math.abs(c.x) === 1 && Math.abs(c.z) === 1;
+    const isEdge = !isCorner && (c.x !== 0 || c.z !== 0);
     const newColors = { ...c.colors };
 
-    // Update each face color
     (Object.keys(newColors) as Face[]).forEach(face => {
       const color = newColors[face];
 
-      // If it's the specific Edge Step, completely gray out corners (top and sides)
-      if (isEdgeStep && isCorner && c.y === 1) { // Only care about top layer pieces
-        newColors[face] = '#374151' as CubeColor; // Gray-700
-        return;
-      }
+      if (isOLL) {
+        // Step 1 OLL: edges only (gray out corners top/side)
+        const isEdgeStep = ['oll-dot', 'oll-l-shape', 'oll-line'].includes(formula.id);
+        if (isEdgeStep && isCorner) {
+          newColors[face] = '#374151' as CubeColor; // Gray-700
+          return;
+        }
 
-      // General OLL Masking:
-      // If the sticker is Yellow, KEEP IT.
-      // If the sticker is NOT Yellow, stick to Gray.
-      if (color !== CubeColor.Yellow) {
-        newColors[face] = '#374151' as CubeColor; // Gray-700 for non-yellow
+        // General OLL Masking: Keep yellow, gray out others
+        if (color !== CubeColor.Yellow) {
+          newColors[face] = '#374151' as CubeColor;
+        }
+      } else if (isPLL) {
+        // PLL Step 1 (Corners): Mask side stickers of edge pieces
+        // This highlights corner recognition (Headlights vs No Headlights)
+        const isCornerStep = ['pll-diagonal', 'pll-headlights'].includes(formula.id);
+        if (isCornerStep && isEdge && face !== Face.U) {
+          newColors[face] = '#374151' as CubeColor;
+        }
       }
     });
 

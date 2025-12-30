@@ -99,17 +99,17 @@ export const FORMULAS: Formula[] = [
   // Step 1: Corners
   {
     id: 'pll-diagonal',
-    name: 'No Headlights (Y-Perm)',
+    name: 'No Headlights',
     category: 'CFOP (2-Look PLL)',
-    algorithm: "F (R U' R' U') (R U R' F') (R U R' U') (R' F R F')",
-    description: 'Swap two diagonal corners. No headlights exist.'
+    algorithm: "F (R U' R' U') R U R' F' (R U R' U') R' F R F'",
+    description: 'Swap two diagonal corners (Y-Perm). Used when no side has headlights.'
   },
   {
     id: 'pll-headlights',
-    name: 'Headlights (T-Perm)',
+    name: 'Headlights',
     category: 'CFOP (2-Look PLL)',
-    algorithm: "(R U R' U') R' F R2 (U' R' U') (R U R' F')",
-    description: 'Swap two adjacent corners. Place headlights on LEFT.'
+    algorithm: "(R U R' U') R' F (R2 U' R') U' (R U R' F')",
+    description: 'Swap two adjacent corners (T-Perm). Place headlights on LEFT before performing.'
   },
 
   // Step 2: Edges
