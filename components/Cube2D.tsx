@@ -3,14 +3,12 @@ import { Cubie, Face, CubeColor } from '../types';
 
 interface Cube2DProps {
   cubies: Cubie[];
+  cellSize?: number;
 }
 
-const CELL_SIZE = 50;
-const GAP = 4;
-const GRID_SIZE = (CELL_SIZE * 3) + (GAP * 2);
+const Cube2D: React.FC<Cube2DProps> = ({ cubies, cellSize = 50 }) => {
+  const GAP = Math.max(2, Math.floor(cellSize / 12));
 
-const Cube2D: React.FC<Cube2DProps> = ({ cubies }) => {
-  
   // Helper to find color of a specific face at specific coordinates
   const getColor = (x: number, y: number, z: number, face: Face) => {
     const cubie = cubies.find(c => c.x === x && c.y === y && c.z === z);
@@ -18,21 +16,20 @@ const Cube2D: React.FC<Cube2DProps> = ({ cubies }) => {
   };
 
   // U Face (Top 3x3 Grid) - y=1
-  // Rows: Back (z=-1), Mid (z=0), Front (z=1)
   const renderUFace = () => {
     const cells = [];
     for (let z = -1; z <= 1; z++) {
       for (let x = -1; x <= 1; x++) {
         const color = getColor(x, 1, z, Face.U);
         cells.push(
-          <div 
-            key={`u-${x}-${z}`} 
-            className="rounded-[4px] border border-black/10 shadow-inner"
-            style={{ 
-              backgroundColor: color, 
-              width: `${CELL_SIZE}px`, 
-              height: `${CELL_SIZE}px` 
-            }} 
+          <div
+            key={`u-${x}-${z}`}
+            className="rounded-[10%] border border-black/10 shadow-inner"
+            style={{
+              backgroundColor: color,
+              width: `${cellSize}px`,
+              height: `${cellSize}px`
+            }}
           />
         );
       }
@@ -41,16 +38,12 @@ const Cube2D: React.FC<Cube2DProps> = ({ cubies }) => {
   };
 
   // Side Strips (Stickers on the side of the Top Layer)
-  // Back Strip: z=-1, y=1, Face.B. x: -1, 0, 1. (Standard view: left to right)
-  // Wait, if looking from front:
-  // Back face is "away". The sticker on B face at x=-1 is the top-left corner's back.
-  // We render B strip above U. x goes -1 -> 1 (Left to Right).
   const renderBackStrip = () => {
     const cells = [];
     for (let x = -1; x <= 1; x++) {
       const color = getColor(x, 1, -1, Face.B);
       cells.push(
-        <div key={`b-${x}`} className="rounded-sm border border-black/10" style={{ backgroundColor: color, width: `${CELL_SIZE}px`, height: '12px' }} />
+        <div key={`b-${x}`} className="rounded-[2px] border border-black/10" style={{ backgroundColor: color, width: `${cellSize}px`, height: `${cellSize * 0.24}px` }} />
       );
     }
     return cells;
@@ -62,7 +55,7 @@ const Cube2D: React.FC<Cube2DProps> = ({ cubies }) => {
     for (let x = -1; x <= 1; x++) {
       const color = getColor(x, 1, 1, Face.F);
       cells.push(
-        <div key={`f-${x}`} className="rounded-sm border border-black/10" style={{ backgroundColor: color, width: `${CELL_SIZE}px`, height: '12px' }} />
+        <div key={`f-${x}`} className="rounded-[2px] border border-black/10" style={{ backgroundColor: color, width: `${cellSize}px`, height: `${cellSize * 0.24}px` }} />
       );
     }
     return cells;
@@ -74,7 +67,7 @@ const Cube2D: React.FC<Cube2DProps> = ({ cubies }) => {
     for (let z = -1; z <= 1; z++) {
       const color = getColor(-1, 1, z, Face.L);
       cells.push(
-        <div key={`l-${z}`} className="rounded-sm border border-black/10" style={{ backgroundColor: color, width: '12px', height: `${CELL_SIZE}px` }} />
+        <div key={`l-${z}`} className="rounded-[2px] border border-black/10" style={{ backgroundColor: color, width: `${cellSize * 0.24}px`, height: `${cellSize}px` }} />
       );
     }
     return cells;
@@ -86,52 +79,54 @@ const Cube2D: React.FC<Cube2DProps> = ({ cubies }) => {
     for (let z = -1; z <= 1; z++) {
       const color = getColor(1, 1, z, Face.R);
       cells.push(
-        <div key={`r-${z}`} className="rounded-sm border border-black/10" style={{ backgroundColor: color, width: '12px', height: `${CELL_SIZE}px` }} />
+        <div key={`r-${z}`} className="rounded-[2px] border border-black/10" style={{ backgroundColor: color, width: `${cellSize * 0.24}px`, height: `${cellSize}px` }} />
       );
     }
     return cells;
   };
 
   return (
-    <div className="flex flex-col items-center justify-center animate-in fade-in duration-700">
-      
+    <div className="flex flex-col items-center justify-center">
+
       {/* Container for the cross shape */}
       <div className="relative">
-        
+
         {/* Back Strip (Top) */}
-        <div className="flex gap-1 justify-center mb-1 ml-[16px] mr-[16px]">
+        <div className="flex justify-center mb-[2px]" style={{ gap: `${Math.max(1, GAP / 2)}px`, marginLeft: `${cellSize * 0.24 + GAP}px`, marginRight: `${cellSize * 0.24 + GAP}px` }}>
           {renderBackStrip()}
         </div>
 
-        <div className="flex gap-1 items-center">
-          
+        <div className="flex items-center" style={{ gap: `${Math.max(1, GAP / 2)}px` }}>
+
           {/* Left Strip */}
-          <div className="flex flex-col gap-1 mr-1">
+          <div className="flex flex-col mr-[2px]" style={{ gap: `${Math.max(1, GAP / 2)}px` }}>
             {renderLeftStrip()}
           </div>
 
           {/* Main 3x3 U Face */}
-          <div className="grid grid-cols-3 gap-1 p-1 bg-black/40 rounded-lg border border-white/10 backdrop-blur-sm">
+          <div className="grid grid-cols-3 bg-black/40 rounded-lg border border-white/10 backdrop-blur-sm" style={{ gap: `${Math.max(1, GAP / 2)}px`, padding: `${Math.max(1, GAP / 2)}px` }}>
             {renderUFace()}
           </div>
 
           {/* Right Strip */}
-          <div className="flex flex-col gap-1 ml-1">
+          <div className="flex flex-col ml-[2px]" style={{ gap: `${Math.max(1, GAP / 2)}px` }}>
             {renderRightStrip()}
           </div>
 
         </div>
 
         {/* Front Strip (Bottom) */}
-        <div className="flex gap-1 justify-center mt-1 ml-[16px] mr-[16px]">
+        <div className="flex justify-center mt-[2px]" style={{ gap: `${Math.max(1, GAP / 2)}px`, marginLeft: `${cellSize * 0.24 + GAP}px`, marginRight: `${cellSize * 0.24 + GAP}px` }}>
           {renderFrontStrip()}
         </div>
 
       </div>
 
-      <div className="mt-8 text-center text-slate-500 text-xs font-mono uppercase tracking-widest">
-        Top View (U Face)
-      </div>
+      {cellSize >= 40 && (
+        <div className="mt-8 text-center text-slate-500 text-xs font-mono uppercase tracking-widest">
+          Top View (U Face)
+        </div>
+      )}
     </div>
   );
 };

@@ -1,16 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createSolvedCube, invertAlgorithm, processAlgorithm } from './services/cubeLogic';
 import { FORMULAS } from './constants';
 import Cube2D from './components/Cube2D'; // Import 2D Cube
 import Timer from './components/Timer';
-import { Formula } from './types';
+import { Formula, Cubie, Face, CubeColor } from './types';
 
 // Get unique categories and preserve order
 const CATEGORIES = Array.from(new Set(FORMULAS.map(f => f.category)));
 
+// Helper to determine if we should mask non-yellow colors
+const getVisualCubies = (originalCubies: Cubie[], formula: Formula): Cubie[] => {
+  if (!formula.category.includes('OLL')) return originalCubies;
+
+  // For Step 1 OLL (Edges), we expressly ignore corners (make them all gray)
+  // Step 2 OLL (Corners), we care about everything on U layer (Edges are already yellow)
+  const isEdgeStep = ['oll-dot', 'oll-l-shape', 'oll-line'].includes(formula.id);
+
+  return originalCubies.map(c => {
+    // Check if it's a corner piece
+    const isCorner = Math.abs(c.x) === 1 && Math.abs(c.z) === 1; // Correct for Corners (x=±1, z=±1)
+
+    // Deep copy colors
+    const newColors = { ...c.colors };
+
+    // Update each face color
+    (Object.keys(newColors) as Face[]).forEach(face => {
+      const color = newColors[face];
+
+      // If it's the specific Edge Step, completely gray out corners (top and sides)
+      if (isEdgeStep && isCorner && c.y === 1) { // Only care about top layer pieces
+        newColors[face] = '#374151' as CubeColor; // Gray-700
+        return;
+      }
+
+      // General OLL Masking:
+      // If the sticker is Yellow, KEEP IT.
+      // If the sticker is NOT Yellow, stick to Gray.
+      if (color !== CubeColor.Yellow) {
+        newColors[face] = '#374151' as CubeColor; // Gray-700 for non-yellow
+      }
+    });
+
+    return { ...c, colors: newColors };
+  });
+};
+
+// Helper component for the icon only
+const FormulaIcon: React.FC<{ formula: Formula }> = ({ formula }) => {
+  const cubies = useMemo(() => {
+    if (!formula.algorithm) return createSolvedCube();
+    const setupMoves = invertAlgorithm(formula.algorithm);
+    const solved = createSolvedCube();
+    const setupStr = setupMoves.join(' ');
+    const rawState = processAlgorithm(solved, setupStr);
+    return getVisualCubies(rawState, formula);
+  }, [formula.algorithm, formula.id, formula.category]);
+
+  return (
+    <div className="w-12 h-12 flex items-center justify-center shrink-0 mr-2">
+      <Cube2D cubies={cubies} cellSize={8} />
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [selectedFormula, setSelectedFormula] = useState<Formula>(FORMULAS[0]);
   const [cubies, setCubies] = useState(createSolvedCube());
+
   const [activeTab, setActiveTab] = useState<'learn' | 'timer'>('learn');
   const [openCategories, setOpenCategories] = useState<string[]>([]); // Default all collapsed
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -55,7 +111,11 @@ const App: React.FC = () => {
     const solved = createSolvedCube();
     const setupStr = setupMoves.join(' ');
     const newCubies = processAlgorithm(solved, setupStr);
-    setCubies(newCubies);
+
+    // Apply the same visualization logic (masking) as the icons
+    const visualCubies = getVisualCubies(newCubies, selectedFormula);
+
+    setCubies(visualCubies);
   }, [selectedFormula]);
 
   return (
@@ -65,30 +125,56 @@ const App: React.FC = () => {
       <aside className="w-full md:w-80 lg:w-96 bg-[#0B0C15]/90 border-r border-white/5 flex flex-col h-[40vh] md:h-screen z-20 shadow-[4px_0_24px_rgba(0,0,0,0.5)] backdrop-blur-xl">
 
         {/* Cool Cyberpunk Header */}
-        <div className="relative p-8 border-b border-white/5 overflow-hidden group select-none">
-          {/* Background Rotating Glow Effect */}
-          <div className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] bg-[conic-gradient(from_0deg,transparent_0deg,rgba(34,211,238,0.1)_180deg,transparent_360deg)] animate-[spin_4s_linear_infinite] opacity-30 group-hover:opacity-60 transition-opacity duration-700 pointer-events-none"></div>
-          <div className="absolute inset-0 bg-[#0B0C15]/90 backdrop-blur-sm"></div>
+        <div className="relative p-6 md:p-8 border-b border-white/5 overflow-hidden group select-none">
+          {/* Background Rotating Glow Effect & Grid */}
+          <div className="absolute inset-0 bg-[#0B0C15]/90 z-0"></div>
+          <div className="absolute -top-[100%] -left-[100%] w-[300%] h-[300%] bg-[conic-gradient(from_0deg,transparent_0deg,rgba(34,211,238,0.05)_180deg,transparent_360deg)] animate-[spin_10s_linear_infinite] opacity-50 pointer-events-none"></div>
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 mix-blend-overlay"></div>
 
           {/* Content */}
-          <div className="relative z-10 flex flex-col">
-            {/* Decorative Glint Bar */}
-            <div className="w-8 h-1 bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,1)] mb-3 rounded-full animate-pulse"></div>
+          <div className="relative z-10 flex flex-col justify-end">
+            {/* Top Status Bar */}
+            <div className="flex justify-between items-center mb-4 opacity-70">
+              <div className="flex gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,1)] animate-ping"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
+              </div>
+              <div className="text-[9px] font-mono text-cyan-500/80 tracking-widest uppercase">
+                SYS.ONLINE
+              </div>
+            </div>
 
-            <h1 className="text-5xl font-black italic tracking-tighter leading-[0.8] text-white transform -skew-x-6">
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-cyan-400 to-blue-500 drop-shadow-[0_0_20px_rgba(34,211,238,0.5)]">
+            <h1 className="relative text-6xl md:text-7xl font-black italic tracking-tighter leading-[0.8] text-white transform -skew-x-12 mix-blend-screen">
+              {/* Main Text Layer */}
+              <div className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_30px_rgba(34,211,238,0.4)]">
                 CUBE
-              </span>
-              <span className="block text-2xl tracking-[0.38em] text-slate-600 group-hover:text-white transition-colors duration-500 ml-1 mt-1 font-bold mix-blend-screen">
-                MASTER
-              </span>
+              </div>
+
+              {/* Glitch Layers (Static visual trickery) */}
+              <div className="absolute top-0 left-0.5 z-0 text-red-500 opacity-40 mix-blend-lighten animate-pulse" style={{ clipPath: 'inset(10% 0 60% 0)', transform: 'translate(-2px, 0)' }}>
+                CUBE
+              </div>
+              <div className="absolute top-0 -left-0.5 z-0 text-cyan-300 opacity-40 mix-blend-lighten animate-pulse" style={{ animationDuration: '0.2s', clipPath: 'inset(40% 0 10% 0)', transform: 'translate(2px, 0)' }}>
+                CUBE
+              </div>
+
+              <div className="flex items-center gap-3 mt-1 ml-1">
+                <span className="text-2xl tracking-[0.4em] text-slate-500 group-hover:text-white transition-colors duration-300 font-bold">
+                  MASTER
+                </span>
+                <div className="h-[2px] w-full bg-gradient-to-r from-purple-500 to-transparent mt-1"></div>
+              </div>
             </h1>
 
-            <div className="mt-5 flex items-center gap-3 opacity-70 group-hover:opacity-100 transition-opacity duration-500">
-              <div className="px-1.5 py-0.5 rounded border border-cyan-500/40 bg-cyan-900/20 text-[9px] text-cyan-300 font-mono tracking-widest uppercase shadow-[0_0_10px_rgba(34,211,238,0.2)]">
-                SYS.V2
+            {/* Bottom Tech Bits */}
+            <div className="mt-6 flex items-center justify-between text-[10px] font-mono text-slate-600">
+              <div className="flex gap-4">
+                <span>CPU: <span className="text-cyan-500">12%</span></span>
+                <span>MEM: <span className="text-cyan-500">4GB</span></span>
               </div>
-              <div className="h-[1px] flex-1 bg-gradient-to-r from-cyan-500/50 to-transparent"></div>
+              <div className="px-2 py-0.5 bg-cyan-900/10 border border-cyan-500/20 text-cyan-400 rounded text-[9px]">
+                V2.4.0
+              </div>
             </div>
           </div>
         </div>
@@ -96,16 +182,31 @@ const App: React.FC = () => {
         <nav className="flex md:flex-col border-b md:border-b-0 border-white/5">
           <button
             onClick={() => setActiveTab('learn')}
-            className={`flex-1 p-4 text-xs font-bold uppercase tracking-widest transition-all relative overflow-hidden ${activeTab === 'learn' ? 'bg-white/5 text-cyan-400' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
+            className={`group flex-1 p-5 text-xs font-bold uppercase tracking-[0.2em] transition-all relative overflow-hidden text-left flex items-center gap-3
+              ${activeTab === 'learn' ? 'bg-white/5 text-cyan-400' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
           >
-            {activeTab === 'learn' && <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.8)]"></div>}
+            {activeTab === 'learn' && (
+              <>
+                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.8)]"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-transparent"></div>
+              </>
+            )}
+            <span className={`text-lg ${activeTab === 'learn' ? 'opacity-100' : 'opacity-0 -ml-5 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300'}`}>▦</span>
             Algorithms
           </button>
+
           <button
             onClick={() => setActiveTab('timer')}
-            className={`flex-1 p-4 text-xs font-bold uppercase tracking-widest transition-all relative overflow-hidden ${activeTab === 'timer' ? 'bg-white/5 text-purple-400' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
+            className={`group flex-1 p-5 text-xs font-bold uppercase tracking-[0.2em] transition-all relative overflow-hidden text-left flex items-center gap-3
+              ${activeTab === 'timer' ? 'bg-white/5 text-purple-400' : 'text-slate-500 hover:text-slate-200 hover:bg-white/5'}`}
           >
-            {activeTab === 'timer' && <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-400 shadow-[0_0_15px_rgba(192,132,252,0.8)]"></div>}
+            {activeTab === 'timer' && (
+              <>
+                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-purple-400 shadow-[0_0_15px_rgba(192,132,252,0.8)]"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent"></div>
+              </>
+            )}
+            <span className={`text-lg ${activeTab === 'timer' ? 'opacity-100' : 'opacity-0 -ml-5 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300'}`}>◷</span>
             Pro Timer
           </button>
         </nav>
@@ -125,19 +226,27 @@ const App: React.FC = () => {
                     <span className={`transform transition-transform duration-300 text-cyan-500/50 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
                   </button>
 
-                  <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                  <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                     <div className="py-2 space-y-1 bg-black/20">
                       {formulas.map(f => (
                         <button
                           key={f.id}
                           onClick={() => setSelectedFormula(f)}
-                          className={`w-full text-left px-5 py-3 border-l-2 transition-all duration-200 group relative ${selectedFormula.id === f.id ? 'bg-gradient-to-r from-cyan-500/10 to-transparent border-cyan-400' : 'border-transparent hover:bg-white/5 hover:border-slate-700'}`}
+                          className={`w-full text-left px-4 py-3 border-l-2 transition-all duration-200 group relative flex items-center gap-3 ${selectedFormula.id === f.id ? 'bg-gradient-to-r from-cyan-500/10 to-transparent border-cyan-400' : 'border-transparent hover:bg-white/5 hover:border-slate-700'}`}
                         >
-                          <div className={`font-bold text-sm transition-colors ${selectedFormula.id === f.id ? 'text-cyan-300' : 'text-slate-300 group-hover:text-white'}`}>
-                            {f.name}
+                          {/* Icon */}
+                          <div className={`shrink-0 transition-opacity duration-200 ${selectedFormula.id === f.id ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>
+                            <FormulaIcon formula={f} />
                           </div>
-                          <div className="text-[10px] text-slate-500 mt-1 font-mono truncate opacity-60 group-hover:opacity-90">
-                            {f.algorithm || "(Intuitive Step)"}
+
+                          {/* Text Info */}
+                          <div className="min-w-0">
+                            <div className={`font-bold text-sm transition-colors truncate ${selectedFormula.id === f.id ? 'text-cyan-300' : 'text-slate-300 group-hover:text-white'}`}>
+                              {f.name}
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-0.5 font-mono truncate opacity-60 group-hover:opacity-90">
+                              {f.algorithm || "(Intuitive Step)"}
+                            </div>
                           </div>
                         </button>
                       ))}

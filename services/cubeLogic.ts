@@ -34,7 +34,7 @@ const applyMove = (cubies: Cubie[], move: string): Cubie[] => {
   const isWide = baseChar >= 'a' && baseChar <= 'z'; // Check if lowercase
   const face = baseChar.toUpperCase();
   const modifier = move.length > 1 ? move.charAt(1) : '';
-  
+
   let times = 1;
   if (modifier === "'") times = 3; // 3 clockwise = 1 counter-clockwise
   if (modifier === '2') times = 2;
@@ -42,7 +42,7 @@ const applyMove = (cubies: Cubie[], move: string): Cubie[] => {
   // Filter cubies affected by the move
   const newCubies = cubies.map(c => {
     let shouldRotate = false;
-    
+
     // Handle standard and wide moves
     switch (face) {
       case 'R': shouldRotate = c.x === 1 || (isWide && c.x === 0); break;
@@ -51,12 +51,12 @@ const applyMove = (cubies: Cubie[], move: string): Cubie[] => {
       case 'D': shouldRotate = c.y === -1 || (isWide && c.y === 0); break;
       case 'F': shouldRotate = c.z === 1 || (isWide && c.z === 0); break;
       case 'B': shouldRotate = c.z === -1 || (isWide && c.z === 0); break;
-      
+
       // Slice moves
       case 'M': shouldRotate = c.x === 0; break; // Middle slice (follows L)
       case 'E': shouldRotate = c.y === 0; break; // Equatorial slice (follows D)
       case 'S': shouldRotate = c.z === 0; break; // Standing slice (follows F)
-      
+
       // Whole cube rotations
       case 'X': shouldRotate = true; break; // Rotate entire cube on R axis
       case 'Y': shouldRotate = true; break; // Rotate entire cube on U axis
@@ -79,20 +79,20 @@ const applyMove = (cubies: Cubie[], move: string): Cubie[] => {
         newColors[Face.D] = newColors[Face.B];
         newColors[Face.B] = temp;
       } else if (face === 'L' || (face === 'M')) {
-         // L and M follow same direction relative to looking at L face? 
-         // Standard: M follows L.
-         // Rotation logic for L (x=-1):
-         // y, z rotation is inverse of R? R is clockwise looking from Right. L is clockwise looking from Left.
-         // So if R is (y,z) -> (z, -y), L is (y,z) -> (-z, y).
-         const [nz, ny] = rotate2D(z, y); y = ny; z = nz;
-         // U -> F -> D -> B -> U
-         const temp = newColors[Face.U];
-         newColors[Face.U] = newColors[Face.B];
-         newColors[Face.B] = newColors[Face.D];
-         newColors[Face.D] = newColors[Face.F];
-         newColors[Face.F] = temp;
+        // L and M follow same direction relative to looking at L face? 
+        // Standard: M follows L.
+        // Rotation logic for L (x=-1):
+        // y, z rotation is inverse of R? R is clockwise looking from Right. L is clockwise looking from Left.
+        // So if R is (y,z) -> (z, -y), L is (y,z) -> (-z, y).
+        const [nz, ny] = rotate2D(z, y); y = ny; z = nz;
+        // U -> F -> D -> B -> U
+        const temp = newColors[Face.U];
+        newColors[Face.U] = newColors[Face.B];
+        newColors[Face.B] = newColors[Face.D];
+        newColors[Face.D] = newColors[Face.F];
+        newColors[Face.F] = temp;
       } else if (face === 'U' || face === 'Y') {
-        const [nx, nz] = rotate2D(x, z); x = nx; z = nz;
+        const [nz, nx] = rotate2D(z, x); x = nx; z = nz;
         // F -> L -> B -> R -> F
         const temp = newColors[Face.F];
         newColors[Face.F] = newColors[Face.R];
@@ -101,12 +101,12 @@ const applyMove = (cubies: Cubie[], move: string): Cubie[] => {
         newColors[Face.L] = temp;
       } else if (face === 'D' || face === 'E') {
         // D and E (Equator) follow D direction: F -> R -> B -> L
-        const [nz, nx] = rotate2D(z, x); x = nx; z = nz;
-         const temp = newColors[Face.F];
-         newColors[Face.F] = newColors[Face.L];
-         newColors[Face.L] = newColors[Face.B];
-         newColors[Face.B] = newColors[Face.R];
-         newColors[Face.R] = temp;
+        const [nx, nz] = rotate2D(x, z); x = nx; z = nz;
+        const temp = newColors[Face.F];
+        newColors[Face.F] = newColors[Face.L];
+        newColors[Face.L] = newColors[Face.B];
+        newColors[Face.B] = newColors[Face.R];
+        newColors[Face.R] = temp;
       } else if (face === 'F' || face === 'S' || face === 'Z') {
         const [nx, ny] = rotate2D(x, y); x = nx; y = ny;
         // U -> R -> D -> L -> U
@@ -150,10 +150,10 @@ export const invertAlgorithm = (algo: string): string[] => {
 };
 
 export const processAlgorithm = (startState: Cubie[], algoStr: string): Cubie[] => {
-    const moves = parseAlgorithm(algoStr);
-    let state = startState;
-    moves.forEach(move => {
-        state = applyMove(state, move);
-    });
-    return state;
+  const moves = parseAlgorithm(algoStr);
+  let state = startState;
+  moves.forEach(move => {
+    state = applyMove(state, move);
+  });
+  return state;
 };
