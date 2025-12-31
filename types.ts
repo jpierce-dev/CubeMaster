@@ -29,9 +29,12 @@ export interface Cubie {
 export interface Formula {
   id: string;
   name: string;
-  category: 'LBL (Beginner)' | 'CFOP (2-Look OLL)' | 'CFOP (2-Look PLL)';
+  category: string;
+  subCategory?: string;
   algorithm: string;
   description: string;
+  cameraAngle?: { x: number; y: number };
+  setup?: string;
 }
 
 export interface TimerSession {

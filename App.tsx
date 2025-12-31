@@ -1,49 +1,82 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createSolvedCube, invertAlgorithm, processAlgorithm } from './services/cubeLogic';
 import { FORMULAS } from './constants';
-import Cube2D from './components/Cube2D'; // Import 2D Cube
+import CubeIcon3D from './components/CubeIcon3D';
+import Cube2D from './components/Cube2D';
+import Cube3D from './components/Cube3D';
 import Timer from './components/Timer';
 import { Formula, Cubie, Face, CubeColor } from './types';
 
 // Get unique categories and preserve order
 const CATEGORIES = Array.from(new Set(FORMULAS.map(f => f.category)));
 
-// Helper to determine if we should mask non-yellow colors
+// Helper to determine if we should mask non-relevant colors (Cube Academy style)
 const getVisualCubies = (originalCubies: Cubie[], formula: Formula): Cubie[] => {
   const isOLL = formula.category.includes('OLL');
   const isPLL = formula.category.includes('PLL');
 
-  if (!isOLL && !isPLL) return originalCubies;
-
   return originalCubies.map(c => {
-    // We only care about the top layer (y=1) visual effects
-    if (c.y !== 1) return c;
-
+    const newColors = { ...c.colors };
+    const isTopLayer = c.y === 1;
     const isCorner = Math.abs(c.x) === 1 && Math.abs(c.z) === 1;
     const isEdge = !isCorner && (c.x !== 0 || c.z !== 0);
-    const newColors = { ...c.colors };
 
     (Object.keys(newColors) as Face[]).forEach(face => {
       const color = newColors[face];
 
       if (isOLL) {
-        // Step 1 OLL: edges only (gray out corners top/side)
-        const isEdgeStep = ['oll-dot', 'oll-l-shape', 'oll-line'].includes(formula.id);
-        if (isEdgeStep && isCorner) {
-          newColors[face] = '#374151' as CubeColor; // Gray-700
+        if (!isTopLayer) {
+          newColors[face] = '#444444' as CubeColor;
           return;
         }
-
-        // General OLL Masking: Keep yellow, gray out others
+        const isEdgeStep = ['oll-dot', 'oll-l-shape', 'oll-line'].includes(formula.id);
+        if (isEdgeStep && isCorner) {
+          newColors[face] = '#444444' as CubeColor;
+          return;
+        }
         if (color !== CubeColor.Yellow) {
-          newColors[face] = '#374151' as CubeColor;
+          newColors[face] = '#444444' as CubeColor;
         }
       } else if (isPLL) {
-        // PLL Step 1 (Corners): Mask side stickers of edge pieces
-        // This highlights corner recognition (Headlights vs No Headlights)
+        if (!isTopLayer) {
+          newColors[face] = '#444444' as CubeColor;
+          return;
+        }
         const isCornerStep = ['pll-diagonal', 'pll-headlights'].includes(formula.id);
         if (isCornerStep && isEdge && face !== Face.U) {
-          newColors[face] = '#374151' as CubeColor;
+          newColors[face] = '#444444' as CubeColor;
+        }
+      } else if (formula.category.includes('F2L')) {
+        const colors = Object.values(c.colors);
+        const hasWhite = colors.includes(CubeColor.White);
+
+        // Detect target slot colors based on algorithm
+        const algo = formula.algorithm.toUpperCase();
+        // If it's a left-handed formula, we target the orange side
+        const isLeft = algo.includes('L');
+        // If it involves back moves, we target the blue side
+        const isBack = algo.includes('B');
+
+        // Default to Front-Right (Red-Green)
+        let mainColor = CubeColor.Green;
+        let sideColor = CubeColor.Red;
+
+        if (isLeft) sideColor = CubeColor.Orange;
+        if (isBack) mainColor = CubeColor.Blue;
+
+        // If it's a front-face logic formula (like F' U' F), it's still FR slot colors (Green-Red)
+        // unless it's a left mirror (L F' L' F) which is caught by isLeft above.
+
+        const isTargetCorner = isCorner && hasWhite && colors.includes(sideColor) && colors.includes(mainColor);
+        const isTargetEdge = isEdge && colors.includes(sideColor) && colors.includes(mainColor) && !hasWhite;
+        const isTargetPair = isTargetCorner || isTargetEdge;
+
+        // Masking rules: Only gray out non-target pieces on the TOP layer.
+        // This keeps the bottom cross and solved slots visible for context.
+        if (!isTargetPair && isTopLayer) {
+          (Object.keys(newColors) as Face[]).forEach(f => {
+            newColors[f] = '#444444' as CubeColor;
+          });
         }
       }
     });
@@ -55,17 +88,22 @@ const getVisualCubies = (originalCubies: Cubie[], formula: Formula): Cubie[] => 
 // Helper component for the icon only
 const FormulaIcon: React.FC<{ formula: Formula }> = ({ formula }) => {
   const cubies = useMemo(() => {
-    if (!formula.algorithm) return createSolvedCube();
-    const setupMoves = invertAlgorithm(formula.algorithm);
+    if (!formula.algorithm && !formula.setup) return createSolvedCube();
     const solved = createSolvedCube();
-    const setupStr = setupMoves.join(' ');
+    const setupStr = formula.setup ? formula.setup : invertAlgorithm(formula.algorithm).join(' ');
     const rawState = processAlgorithm(solved, setupStr);
     return getVisualCubies(rawState, formula);
-  }, [formula.algorithm, formula.id, formula.category]);
+  }, [formula.algorithm, formula.setup, formula.id, formula.category]);
+
+  const isOLLorPLL = formula.category.includes('OLL') || formula.category.includes('PLL');
 
   return (
-    <div className="w-12 h-12 flex items-center justify-center shrink-0 mr-2">
-      <Cube2D cubies={cubies} cellSize={8} />
+    <div className="w-12 h-12 flex items-center justify-center shrink-0 mr-2 overflow-visible">
+      {isOLLorPLL ? (
+        <Cube2D cubies={cubies} cellSize={10} />
+      ) : (
+        <CubeIcon3D cubies={cubies} size={40} />
+      )}
     </div>
   );
 };
@@ -105,18 +143,17 @@ const App: React.FC = () => {
 
   // Update cube when formula changes
   useEffect(() => {
-    // If empty algorithm, show solved
-    if (!selectedFormula.algorithm) {
+    // If empty algorithm and no setup, show solved
+    if (!selectedFormula.algorithm && !selectedFormula.setup) {
       setCubies(createSolvedCube());
       return;
     }
 
-    // We want to show the state *before* the algorithm is executed.
-    // Apply INVERSE of algorithm to a solved cube.
-    // This creates the "Case" that needs solving.
-    const setupMoves = invertAlgorithm(selectedFormula.algorithm);
+    // Use custom setup if provided, otherwise use algorithm inverse
     const solved = createSolvedCube();
-    const setupStr = setupMoves.join(' ');
+    const setupStr = selectedFormula.setup
+      ? selectedFormula.setup
+      : invertAlgorithm(selectedFormula.algorithm).join(' ');
     const newCubies = processAlgorithm(solved, setupStr);
 
     // Apply the same visualization logic (masking) as the icons
@@ -233,30 +270,45 @@ const App: React.FC = () => {
                     <span className={`transform transition-transform duration-300 text-cyan-500/50 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
                   </button>
 
-                  <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                    <div className="py-2 space-y-1 bg-black/20">
-                      {formulas.map(f => (
-                        <button
-                          key={f.id}
-                          onClick={() => setSelectedFormula(f)}
-                          className={`w-full text-left px-4 py-3 border-l-2 transition-all duration-200 group relative flex items-center gap-3 ${selectedFormula.id === f.id ? 'bg-gradient-to-r from-cyan-500/10 to-transparent border-cyan-400' : 'border-transparent hover:bg-white/5 hover:border-slate-700'}`}
-                        >
-                          {/* Icon */}
-                          <div className={`shrink-0 transition-opacity duration-200 ${selectedFormula.id === f.id ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>
-                            <FormulaIcon formula={f} />
-                          </div>
+                  <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[6000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className="py-2 pb-4 space-y-4 bg-black/20">
+                      {/* Sub-grouping logic */}
+                      {Array.from(new Set(formulas.map(f => f.subCategory))).map(subCat => {
+                        const subFormulas = formulas.filter(f => f.subCategory === subCat);
+                        return (
+                          <div key={subCat || 'default'} className="px-2">
+                            {subCat && (
+                              <div className="px-3 py-1 text-[9px] font-black text-cyan-500/50 uppercase tracking-widest border-b border-white/5 mb-1">
+                                {subCat}
+                              </div>
+                            )}
+                            <div className="space-y-1">
+                              {subFormulas.map(f => (
+                                <button
+                                  key={f.id}
+                                  onClick={() => setSelectedFormula(f)}
+                                  className={`w-full text-left px-3 py-2 border-l-2 transition-all duration-200 group relative flex items-center gap-3 ${selectedFormula.id === f.id ? 'bg-gradient-to-r from-cyan-500/10 to-transparent border-cyan-400' : 'border-transparent hover:bg-white/5 hover:border-slate-700'}`}
+                                >
+                                  {/* Icon */}
+                                  <div className={`shrink-0 transition-opacity duration-200 ${selectedFormula.id === f.id ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>
+                                    <FormulaIcon formula={f} />
+                                  </div>
 
-                          {/* Text Info */}
-                          <div className="min-w-0">
-                            <div className={`font-bold text-sm transition-colors truncate ${selectedFormula.id === f.id ? 'text-cyan-300' : 'text-slate-300 group-hover:text-white'}`}>
-                              {f.name}
-                            </div>
-                            <div className="text-[10px] text-slate-500 mt-0.5 font-mono truncate opacity-60 group-hover:opacity-90">
-                              {f.algorithm || "(Intuitive Step)"}
+                                  {/* Text Info */}
+                                  <div className="min-w-0">
+                                    <div className={`font-bold text-xs transition-colors truncate ${selectedFormula.id === f.id ? 'text-cyan-300' : 'text-slate-300 group-hover:text-white'}`}>
+                                      {f.name}
+                                    </div>
+                                    <div className="text-[9px] text-slate-500 mt-0.5 font-mono truncate opacity-60 group-hover:opacity-90 leading-tight">
+                                      {f.algorithm || "(Intuitive)"}
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
                             </div>
                           </div>
-                        </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -304,9 +356,13 @@ const App: React.FC = () => {
                 {/* Glow behind cube */}
                 <div className="absolute w-[300px] h-[300px] bg-cyan-500/5 blur-[80px] rounded-full pointer-events-none"></div>
 
-                {/* 2D Component */}
-                <div className="transform scale-110 md:scale-150 transition-transform duration-500">
-                  <Cube2D cubies={cubies} />
+                {/* 3D or 2D Component based on category */}
+                <div className="w-full h-full max-w-[600px] max-h-[600px] transition-transform duration-500 flex items-center justify-center">
+                  {selectedFormula.category.includes('F2L') ? (
+                    <Cube3D cubies={cubies} cameraAngle={selectedFormula.cameraAngle} />
+                  ) : (
+                    <Cube2D cubies={cubies} cellSize={window.innerWidth < 768 ? 40 : 60} />
+                  )}
                 </div>
               </div>
 

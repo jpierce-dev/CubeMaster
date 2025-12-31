@@ -63,6 +63,8 @@ const applyMove = (cubies: Cubie[], move: string): Cubie[] => {
       case 'Z': shouldRotate = true; break; // Rotate entire cube on F axis
     }
 
+
+
     if (!shouldRotate) return c;
 
     let { x, y, z, colors } = c;
@@ -99,6 +101,7 @@ const applyMove = (cubies: Cubie[], move: string): Cubie[] => {
         newColors[Face.R] = newColors[Face.B];
         newColors[Face.B] = newColors[Face.L];
         newColors[Face.L] = temp;
+
       } else if (face === 'D' || face === 'E') {
         // D and E (Equator) follow D direction: F -> R -> B -> L
         const [nx, nz] = rotate2D(x, z); x = nx; z = nz;
